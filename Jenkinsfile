@@ -39,6 +39,7 @@ pipeline {
             }
         }
         stage('SonarQube Analysis') {
+            options { timeout(time: 2, unit: 'MINUTES') }
             environment {
                 SONAR_TOKEN = credentials('sonarqube-token')
             }
