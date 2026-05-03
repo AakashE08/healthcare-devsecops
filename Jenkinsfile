@@ -39,6 +39,9 @@ pipeline {
             }
         }
         stage('SonarQube Analysis') {
+            environment {
+                SONAR_TOKEN = credentials('sonarqube-token')
+            }
             steps {
                 sh """
                     /opt/sonar-scanner/bin/sonar-scanner \
