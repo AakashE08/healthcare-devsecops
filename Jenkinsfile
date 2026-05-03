@@ -98,7 +98,7 @@ pipeline {
                 sh """
                     kubectl create secret generic healthcare-secrets \
                         --from-literal=api-token="Secure-API-Token-Healthcare-2024" \
-                        --from-literal=secret-key="SecureKey-$(date +%s)" \
+                        --from-literal=secret-key='SecureKey-Healthcare-2024' \
                         --namespace=${NAMESPACE} \
                         --kubeconfig=${KUBECONFIG} \
                         --dry-run=client -o yaml | \
