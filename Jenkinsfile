@@ -33,7 +33,7 @@ pipeline {
             steps {
                 sh """
                     cd app
-                    pip3 install -r requirements.txt --break-system-packages --quiet
+                    python3 -m pip install -r requirements.txt --break-system-packages --quiet
                     python3 -m pytest tests/ -v --tb=short
                 """
             }
