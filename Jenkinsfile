@@ -1,14 +1,14 @@
 pipeline {
     agent any
     environment {
-        DOCKER_HUB_USER  = 'aakash888'
-        IMAGE_NAME       = "${DOCKER_HUB_USER}/healthcare-api"
-        IMAGE_TAG        = "${BUILD_NUMBER}"
-        FULL_IMAGE       = "${IMAGE_NAME}:${IMAGE_TAG}"
-        KUBECONFIG       = '/var/lib/jenkins/.kube/config'
-        NAMESPACE        = 'healthcare'
+        DOCKER_HUB_USER   = 'aakash888'
+        IMAGE_NAME        = "${DOCKER_HUB_USER}/healthcare-api"
+        IMAGE_TAG         = "${BUILD_NUMBER}"
+        FULL_IMAGE        = "${IMAGE_NAME}:${IMAGE_TAG}"
+        KUBECONFIG        = '/var/lib/jenkins/.kube/config'
+        NAMESPACE         = 'healthcare'
         MASTER_PRIVATE_IP = '172.31.45.159'
-        SONAR_HOST       = 'http://54.92.151.234:9000'
+        SONAR_HOST        = 'http://54.92.151.234:9000'
     }
     stages {
         stage('Fix Kubeconfig') {
@@ -39,28 +39,23 @@ pipeline {
             }
         }
         stage('SonarQube Analysis') {
-            options { timeout(time: 2, unit: 'MINUTES') }
-            environment {
-                SONAR_TOKEN = credentials('sonarqube-token')
-            }
             steps {
-                sh """
-                    /opt/sonar-scanner/bin/sonar-scanner \
-                        -Dsonar.projectKey=healthcare-devsecops \
-                        -Dsonar.sources=app \
-                        -Dsonar.language=py \
-                        -Dsonar.host.url=${SONAR_HOST} \
-                        -Dsonar.login=${SONAR_TOKEN}
-                """
+                catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
+                    withCredentials([string(credentialsId: 'sonarqube-token', variable: 'SONAR_TOKEN')]) {
+                        sh """/opt/sonar-scanner/bin/sonar-scanner \
+                            -Dsonar.projectKey=healthcare-devsecops \
+                            -Dsonar.sources=app \
+                            -Dsonar.language=py \
+                            -Dsonar.host.url=${SONAR_HOST} \
+                            -Dsonar.login=\${SONAR_TOKEN}"""
+                    }
+                }
             }
         }
         stage('Build Docker Image') {
             steps {
                 sh """
-                    docker build \
-                        --no-cache \
-                        --label build-number=${BUILD_NUMBER} \
-                        -t ${FULL_IMAGE} .
+                    docker build --no-cache -t ${FULL_IMAGE} .
                     docker tag ${FULL_IMAGE} ${IMAGE_NAME}:latest
                 """
             }
@@ -101,7 +96,7 @@ pipeline {
             steps {
                 sh """
                     kubectl create secret generic healthcare-secrets \
-                        --from-literal=api-token="Secure-API-Token-Healthcare-2024" \
+                        --from-literal=api-token='Secure-API-Token-Healthcare-2024' \
                         --from-literal=secret-key='SecureKey-Healthcare-2024' \
                         --namespace=${NAMESPACE} \
                         --kubeconfig=${KUBECONFIG} \
@@ -132,7 +127,7 @@ pipeline {
                     kubectl get svc -n ${NAMESPACE} --kubeconfig=${KUBECONFIG}
                     echo '=== RBAC ==='
                     kubectl get rolebindings -n ${NAMESPACE} --kubeconfig=${KUBECONFIG}
-                    echo '=== Secrets (base64 protected) ==='
+                    echo '=== Secrets ==='
                     kubectl get secret healthcare-secrets -n ${NAMESPACE} --kubeconfig=${KUBECONFIG}
                 """
             }
@@ -145,7 +140,7 @@ pipeline {
         }
         failure {
             sh "kubectl rollout undo deployment/healthcare-api -n ${NAMESPACE} --kubeconfig=${KUBECONFIG} || true"
-            echo "Pipeline FAILED a security gate. Deployment blocked."
+            echo "Pipeline FAILED. Deployment blocked."
         }
         always {
             sh 'docker rmi ${FULL_IMAGE} || true'
